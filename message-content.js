@@ -59,7 +59,7 @@ module.exports = {
         );
         if (reportChannel) {
           await reportChannel.send(
-            `### **User Kicked**\nUser: ${message.author.tag} (${userId})\nReason: Sent messages in monitored channel: <#${matchedChannel.monitor}>`
+            `### **User Kicked**\nUser: ${message.author.tag} (${userId})\nReason: Sent messages in monitored channel: <#${matchedChannel.monitor}>\n\`\`\`${message.content}\`\`\``
           );
         }
       } catch (err) {

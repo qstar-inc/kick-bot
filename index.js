@@ -7,6 +7,7 @@ const {
 } = require("discord.js");
 const fs = require("node:fs");
 const path = require("node:path");
+const MessageContent = require("./events/message-content");
 
 require("dotenv").config();
 token = process.env.DISCORD_TOKEN;
@@ -62,7 +63,6 @@ for (const file of eventFiles) {
 //   GuildCreate.execute(client, guild);
 // });
 
-const MessageContent = require("./message-content");
 client.on(MessageContent.name, MessageContent.execute);
 
 client.login(token);

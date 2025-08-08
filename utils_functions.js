@@ -92,7 +92,7 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
       }
 
       for (const [userId, msgs] of Object.entries(userMessageCount)) {
-        if (msgs.length > 1 && !seenUsers.has(userId)) {
+        if (msgs.length > 0 && !seenUsers.has(userId)) {
           seenUsers.add(userId);
 
           for (const msg of msgs) {
@@ -114,7 +114,7 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
               );
             }
           } catch (err) {
-            postErrors(err);
+            if (!err.message.startsWith("Unknown Member")) postErrors(err);
           }
         }
       }

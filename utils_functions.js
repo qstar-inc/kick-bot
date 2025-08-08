@@ -1,4 +1,4 @@
-const { PermissionsBitField } = require("discord.js");
+const { PermissionsBitField, ChannelType } = require("discord.js");
 const channelIds = require("./channelId");
 
 async function postErrors(a, b) {
@@ -87,6 +87,8 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
           continue;
         }
 
+        console.log(`New message from ${msg.author.id}: ${msg.content}`);
+
         userMessageCount[msg.author.id] ??= [];
         userMessageCount[msg.author.id].push(msg);
       }
@@ -95,26 +97,31 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
         if (msgs.length > 0 && !seenUsers.has(userId)) {
           seenUsers.add(userId);
 
+          try {
+            const member = await channel.guild.members.fetch(userId);
+            // await member.kick("Spam in monitored channel");
+            console.log("Simulating kick");
+
+            const reportChannel = await client.channels.fetch(reportChannelId);
+            if (reportChannel) {
+              let text = `### **User Kicked**\nUser: ${member.user.tag} (${userId})\nReason: Spam in monitored channel: <#${channelId}>`;
+              if (msgs[0].content) {
+                text += `\n\`\`\`${msgs[0].content}\`\`\``;
+              } else {
+                text += `\n\`\`\`${msgs[0]}\`\`\``;
+              }
+              await reportChannel.send(text);
+            }
+          } catch (err) {
+            if (!err.message.startsWith("Unknown Member")) postErrors(err);
+          }
+
           for (const msg of msgs) {
             try {
               await msg.delete();
             } catch (err) {
               postErrors(err);
             }
-          }
-
-          try {
-            const member = await channel.guild.members.fetch(userId);
-            await member.kick("Spam in monitored channel");
-
-            const reportChannel = await client.channels.fetch(reportChannelId);
-            if (reportChannel) {
-              await reportChannel.send(
-                `### **User Kicked**\nUser: ${member.user.tag} (${userId})\nReason: Spam in monitored channel: <#${channelId}>\n\`\`\`${msgs[0].content}\`\`\``
-              );
-            }
-          } catch (err) {
-            if (!err.message.startsWith("Unknown Member")) postErrors(err);
           }
         }
       }
@@ -124,7 +131,39 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
   }
 }
 
+async function fetchMessagesFromAllChannels(
+  guild,
+  userId,
+  limitPerChannel = 100,
+  cutoff
+) {
+  const textChannels = guild.channels.cache.filter(
+    (ch) => ch.type === ChannelType.GuildText
+  );
+
+  const fetchPromises = textChannels.map(async (channel) => {
+    try {
+      const fetched = await channel.messages.fetch({
+        limit: limitPerChannel,
+      });
+      return fetched.filter((msg) => {
+        return (
+          msg.author.id === userId &&
+          (!cutoff || msg.createdTimestamp >= cutoff)
+        );
+      });
+    } catch (err) {
+      return new Map();
+    }
+  });
+
+  const results = await Promise.all(fetchPromises);
+
+  return results.flatMap((col) => [...col.values()]);
+}
+
 async function checkUserSpamInChannel(message, botText, postErrors) {
+  console.log("New message");
   if (
     message.author.bot ||
     message.author.id === botText.starq_id ||
@@ -133,28 +172,47 @@ async function checkUserSpamInChannel(message, botText, postErrors) {
     return;
   }
 
+  const cutoff = Date.now() - 10 * 60 * 1000;
+
   try {
-    const messages = await message.channel.messages.fetch({ limit: 100 });
-    const matchingMessages = messages.filter(
-      (msg) =>
-        msg.author.id === message.author.id &&
-        msg.content === message.content &&
-        msg.id !== message.id
+    const messages = await fetchMessagesFromAllChannels(
+      message.guild,
+      message.author.id,
+      10,
+      cutoff
     );
+    const matchingMessages = messages.filter((msg) => {
+      return msg.id !== message.id;
+    });
 
-    if (matchingMessages.size > 0) {
-      for (const msg of matchingMessages.values()) {
-        await msg.delete();
+    if (matchingMessages.length > 0) {
+      for (const msg of matchingMessages) {
+        try {
+          console.log("Deleting other channel messages");
+          await msg.delete();
+        } catch (err) {
+          postErrors(err);
+        }
       }
-      await message.delete();
-
-      await message.member.kick("Spam in monitored channel");
-
-      return {
-        kicked: true,
-        sampleContent: message.content,
-      };
     }
+    try {
+      console.log("Deleting message");
+      await message.delete();
+    } catch (err) {
+      postErrors(err);
+    }
+
+    try {
+      console.log(`Kicking ${message.member.id}`);
+      await message.member.kick("Spam in monitored channel");
+    } catch (err) {
+      postErrors(err);
+    }
+
+    return {
+      kicked: true,
+      sampleContent: message.content,
+    };
   } catch (err) {
     postErrors(err);
   }

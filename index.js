@@ -63,7 +63,7 @@ for (const file of eventFiles) {
 //   GuildCreate.execute(client, guild);
 // });
 
-client.on(MessageContent.name, MessageContent.execute);
+// client.on(MessageContent.name, MessageContent.execute);
 
 client.login(token);
 

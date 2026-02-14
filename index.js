@@ -1,13 +1,11 @@
 const {
   Client,
   Collection,
-  Events,
   GatewayIntentBits,
   Partials,
 } = require("discord.js");
 const fs = require("node:fs");
 const path = require("node:path");
-const MessageContent = require("./events/message-content");
 
 require("dotenv").config();
 token = process.env.DISCORD_TOKEN;
@@ -57,13 +55,6 @@ for (const file of eventFiles) {
     client.on(event.name, (...args) => event.execute(...args));
   }
 }
-
-// const GuildCreate = require("./guildCreate");
-// client.on(GuildCreate.name, (guild) => {
-//   GuildCreate.execute(client, guild);
-// });
-
-// client.on(MessageContent.name, MessageContent.execute);
 
 client.login(token);
 

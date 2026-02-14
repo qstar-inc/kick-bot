@@ -25,7 +25,7 @@ async function postErrors(a, b) {
     .send({
       content: errorLog,
     })
-    .catch((error) => {
+    .catch(error => {
       console.error(error);
     });
 }
@@ -38,22 +38,23 @@ async function findAllMessagesByUser(
   client,
   guild,
   userId,
-  timeWindowMs = 5 * 60 * 1000
+  timeWindowMs = 5 * 60 * 1000,
 ) {
   const now = Date.now();
   const userMessages = [];
   const guildObject = await client.guilds.fetch(guild);
 
   const textChannels = guildObject.channels.cache.filter(
-    (ch) => ch.isTextBased() && ch.viewable
+    ch => ch.isTextBased() && ch.viewable,
   );
 
   for (const [, channel] of textChannels) {
     try {
       const messages = await channel.messages.fetch({ limit: 100 });
       const filtered = messages.filter(
-        (msg) =>
-          msg.author.id === userId && now - msg.createdTimestamp <= timeWindowMs
+        msg =>
+          msg.author.id === userId &&
+          now - msg.createdTimestamp <= timeWindowMs,
       );
       userMessages.push(...filtered.values());
     } catch (err) {
@@ -83,9 +84,8 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
           msg.author.bot ||
           msg.author.id === botText.starq_id ||
           msg.member?.permissions.has(PermissionsBitField.Flags.Administrator)
-        ) {
+        )
           continue;
-        }
 
         console.log(`New message from ${msg.author.id}: ${msg.content}`);
 
@@ -99,15 +99,15 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
 
           try {
             const member = await channel.guild.members.fetch(userId);
-            // await member.kick("Spam in monitored channel");
-            console.log("Simulating kick");
+            await member.kick("Spam in monitored channel");
+            console.log(`Kicking user ${userId} for spamming in ${channelId}`);
 
             const reportChannel = await client.channels.fetch(reportChannelId);
             if (reportChannel) {
               let text = `### **User Kicked**\nUser: ${member.user.tag} (${userId})\nReason: Spam in monitored channel: <#${channelId}>`;
-              if (msgs[0].content) {
+              if (msgs[0].content && msgs[0].content != "") {
                 text += `\n\`\`\`${msgs[0].content}\`\`\``;
-              } else {
+              } else if (msgs[0] && msgs[0] != "") {
                 text += `\n\`\`\`${msgs[0]}\`\`\``;
               }
               await reportChannel.send(text);
@@ -135,21 +135,21 @@ async function fetchMessagesFromAllChannels(
   guild,
   userId,
   limitPerChannel = 100,
-  cutoff
+  timeToCheckUntil,
 ) {
   const textChannels = guild.channels.cache.filter(
-    (ch) => ch.type === ChannelType.GuildText
+    ch => ch.type === ChannelType.GuildText,
   );
 
-  const fetchPromises = textChannels.map(async (channel) => {
+  const fetchPromises = textChannels.map(async channel => {
     try {
       const fetched = await channel.messages.fetch({
         limit: limitPerChannel,
       });
-      return fetched.filter((msg) => {
+      return fetched.filter(msg => {
         return (
           msg.author.id === userId &&
-          (!cutoff || msg.createdTimestamp >= cutoff)
+          (!timeToCheckUntil || msg.createdTimestamp >= timeToCheckUntil)
         );
       });
     } catch (err) {
@@ -159,7 +159,7 @@ async function fetchMessagesFromAllChannels(
 
   const results = await Promise.all(fetchPromises);
 
-  return results.flatMap((col) => [...col.values()]);
+  return results.flatMap(col => [...col.values()]);
 }
 
 async function checkUserSpamInChannel(message, botText, postErrors) {
@@ -168,30 +168,32 @@ async function checkUserSpamInChannel(message, botText, postErrors) {
     message.author.bot ||
     message.author.id === botText.starq_id ||
     message.member?.permissions.has(PermissionsBitField.Flags.Administrator)
-  ) {
+  )
     return;
-  }
 
-  const cutoff = Date.now() - 10 * 60 * 1000;
+  const timeToCheck = Date.now() - 10 * 60 * 1000;
 
   try {
     const messages = await fetchMessagesFromAllChannels(
       message.guild,
       message.author.id,
       10,
-      cutoff
+      timeToCheck,
     );
-    const matchingMessages = messages.filter((msg) => {
+    const matchingMessages = messages.filter(msg => {
       return msg.id !== message.id;
     });
 
     if (matchingMessages.length > 0) {
+      console.log(`Deleting ${matchingMessages.length} other channel messages`);
       for (const msg of matchingMessages) {
         try {
-          console.log("Deleting other channel messages");
           await msg.delete();
         } catch (err) {
-          postErrors(err);
+          postErrors(
+            `Unable to delete other message in <#${msg.channelId}>`,
+            err,
+          );
         }
       }
     }
@@ -199,19 +201,25 @@ async function checkUserSpamInChannel(message, botText, postErrors) {
       console.log("Deleting message");
       await message.delete();
     } catch (err) {
-      postErrors(err);
+      postErrors(
+        `Unable to delete main message in <#${message.channelId}>`,
+        err,
+      );
     }
 
     try {
       console.log(`Kicking ${message.member.id}`);
       await message.member.kick("Spam in monitored channel");
     } catch (err) {
-      postErrors(err);
+      postErrors(
+        `Unable to kick user ${message.member.id} in <#${message.channelId}>`,
+        err,
+      );
     }
 
     return {
       kicked: true,
-      sampleContent: message.content,
+      sampleContent: message.content[0] ?? message.content,
     };
   } catch (err) {
     postErrors(err);

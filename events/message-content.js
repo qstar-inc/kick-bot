@@ -11,7 +11,7 @@ module.exports = {
 
     const channels = await db.getChannelMonitor();
     const matchedChannel = channels.find(
-      (row) => row.monitor === message.channel.id
+      row => row.monitor === message.channel.id,
     );
     if (!matchedChannel) return;
 
@@ -19,8 +19,13 @@ module.exports = {
     if (result.kicked) {
       const reportChannel = await client.channels.fetch(matchedChannel.report);
       if (reportChannel) {
+        let sampleContent = "";
+        if (result.sampleContent && result.sampleContent != "") {
+          sampleContent = `\n\`\`\`${result.sampleContent}\`\`\``;
+        }
+
         await reportChannel.send(
-          `### **User Kicked**\nUser: ${message.author.tag} (${message.author.id})\nReason: Spam in monitored channel: <#${matchedChannel.monitor}>\n\`\`\`${result.sampleContent}\`\`\``
+          `### **User Kicked**\nUser: ${message.author.tag} (${message.author.id})\nReason: Spam in monitored channel: <#${matchedChannel.monitor}>${sampleContent}`,
         );
       }
     }

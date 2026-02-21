@@ -1,21 +1,21 @@
-const { Events } = require("discord.js");
-const db = require("../db");
-const { botText } = require("../botText");
-const { postErrors, checkUserSpamInChannel } = require("../utils_functions");
+import { getChannelMonitor } from "../db.js";
+import { Events } from "discord.js";
+import { botText } from "../botText.js";
+import { checkUserSpamInChannel } from "../utils_functions.js";
 
-module.exports = {
+export default {
   name: Events.MessageCreate,
   async execute(message) {
     if (message.author.bot || message.author.id == botText.starq_id) return;
     const client = message.client;
 
-    const channels = await db.getChannelMonitor();
+    const channels = await getChannelMonitor();
     const matchedChannel = channels.find(
       row => row.monitor === message.channel.id,
     );
     if (!matchedChannel) return;
 
-    const result = await checkUserSpamInChannel(message, botText, postErrors);
+    const result = await checkUserSpamInChannel(message);
     if (result.kicked) {
       const reportChannel = await client.channels.fetch(matchedChannel.report);
       if (reportChannel) {

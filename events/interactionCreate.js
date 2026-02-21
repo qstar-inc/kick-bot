@@ -1,10 +1,11 @@
-const { Collection, Events, MessageFlags } = require("discord.js");
-const messages = require("../messages");
-const { botText } = require("../botText");
-const { postErrors } = require("../utils_functions");
+import { Collection, Events, MessageFlags } from "discord.js";
+import { messages } from "../messages.js";
+import { botText } from "../botText.js";
+import { postErrors } from "../utils_functions.js";
+
 const admin = [botText.starq_id /* StarQ */];
 
-module.exports = {
+export default {
   name: Events.InteractionCreate,
   async execute(interaction) {
     if (!interaction.isChatInputCommand()) return;
@@ -38,7 +39,7 @@ module.exports = {
           return interaction.reply({
             content: messages.cooldown(
               command.data.name,
-              `${cooldownAmount / 1_000} seconds`
+              `${cooldownAmount / 1_000} seconds`,
             ),
             flags: MessageFlags.Ephemeral,
           });
@@ -66,7 +67,7 @@ module.exports = {
             content: messages.critical,
             flags: MessageFlags.Ephemeral,
           })
-          .catch(async (error) => {
+          .catch(async error => {
             await postErrors(error);
           });
       } else {

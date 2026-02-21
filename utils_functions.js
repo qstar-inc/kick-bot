@@ -1,9 +1,13 @@
-const { PermissionsBitField, ChannelType } = require("discord.js");
-const channelIds = require("./channelId");
+import { PermissionsBitField, ChannelType } from "discord.js";
+import { channelIds } from "./channelId.js";
+import { getChannelMonitor } from "./db.js";
+import { botText } from "./botText.js";
 
-async function postErrors(a, b) {
-  const { client } = require("./index");
-  let text, error;
+const timeToCheck = Date.now() - 1000 * 60 * 10 * 6 * 8; // 10 mins * 6 * 8 = 8hrs
+
+export async function postErrors(a, b, c) {
+  const { client } = await import("./index.js");
+  let text, error, channelData;
 
   if (typeof b === "undefined") {
     error = a;
@@ -11,6 +15,10 @@ async function postErrors(a, b) {
   } else {
     text = `${a}\n`;
     error = b;
+  }
+
+  if (typeof c !== "undefined") {
+    processInteraction(c);
   }
 
   let errorText = error.stack || error.toString();
@@ -30,15 +38,15 @@ async function postErrors(a, b) {
     });
 }
 
-function sanitizeLine(line) {
-  return decodeURIComponent(`${line.replaceAll("\\", "/")}`);
+function processInteraction(interaction) {
+  console.log(interaction);
 }
 
 async function findAllMessagesByUser(
   client,
   guild,
   userId,
-  timeWindowMs = 5 * 60 * 1000,
+  timeWindowMs = timeToCheck,
 ) {
   const now = Date.now();
   const userMessages = [];
@@ -65,8 +73,18 @@ async function findAllMessagesByUser(
   return userMessages;
 }
 
-async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
-  const channels = await db.getChannelMonitor();
+export async function startSpamScanner(client) {
+  await monitorSpamAcrossChannels(client);
+  setInterval(
+    async () => {
+      await monitorSpamAcrossChannels(client);
+    },
+    5 * 60 * 1000,
+  ); // every 5 minutes
+}
+
+async function monitorSpamAcrossChannels(client) {
+  const channels = await getChannelMonitor();
   const seenUsers = new Set();
   for (const channelData of channels) {
     const { monitor: channelId, report: reportChannelId } = channelData;
@@ -102,6 +120,7 @@ async function monitorSpamAcrossChannels(client, db, botText, postErrors) {
             await member.kick("Spam in monitored channel");
             console.log(`Kicking user ${userId} for spamming in ${channelId}`);
 
+            await checkUserSpamInChannel(msgs[0]);
             const reportChannel = await client.channels.fetch(reportChannelId);
             if (reportChannel) {
               let text = `### **User Kicked**\nUser: ${member.user.tag} (${userId})\nReason: Spam in monitored channel: <#${channelId}>`;
@@ -162,16 +181,51 @@ async function fetchMessagesFromAllChannels(
   return results.flatMap(col => [...col.values()]);
 }
 
-async function checkUserSpamInChannel(message, botText, postErrors) {
-  console.log("New message");
+export async function checkUserSpamInChannelByUserId(
+  client,
+  guildId,
+  authorId,
+) {
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    const messages = await fetchMessagesFromAllChannels(
+      guild,
+      authorId,
+      10,
+      timeToCheck,
+    );
+
+    if (messages.length > 0) {
+      console.log(`Deleting ${messages.length} other channel messages`);
+      for (const msg of messages) {
+        try {
+          await msg.delete();
+        } catch (err) {
+          postErrors(
+            `Unable to delete other message in <#${msg.channelId}>`,
+            err,
+          );
+        }
+      }
+    }
+
+    return {
+      success: true,
+    };
+  } catch (err) {
+    postErrors(err);
+  }
+
+  return { success: false };
+}
+
+export async function checkUserSpamInChannel(message) {
   if (
     message.author.bot ||
     message.author.id === botText.starq_id ||
     message.member?.permissions.has(PermissionsBitField.Flags.Administrator)
   )
     return;
-
-  const timeToCheck = Date.now() - 10 * 60 * 1000;
 
   try {
     const messages = await fetchMessagesFromAllChannels(
@@ -228,10 +282,6 @@ async function checkUserSpamInChannel(message, botText, postErrors) {
   return { kicked: false };
 }
 
-module.exports = {
-  postErrors,
-  sanitizeLine,
-  findAllMessagesByUser,
-  monitorSpamAcrossChannels,
-  checkUserSpamInChannel,
-};
+export function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

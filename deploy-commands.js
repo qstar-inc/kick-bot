@@ -1,14 +1,16 @@
-const { REST, Routes } = require("discord.js");
-const fs = require("node:fs");
-const path = require("node:path");
-const { postErrors } = require("./utils_functions");
+import { REST, Routes } from "discord.js";
+import fs from "node:fs";
+import path from "node:path";
+import { postErrors } from "./utils_functions.js";
+import { pathToFileURL } from "node:url";
 
-require("dotenv").config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-clientId = process.env.APP_ID;
-token = process.env.DISCORD_TOKEN;
+const clientId = process.env.APP_ID;
+const token = process.env.DISCORD_TOKEN;
 
-const registerCommands = async () => {
+export default registerCommands = async () => {
   const commands = [];
   const foldersPath = path.join(__dirname, "commands");
   const commandFolders = fs.readdirSync(foldersPath);
@@ -17,18 +19,21 @@ const registerCommands = async () => {
     const commandsPath = path.join(foldersPath, folder);
     const commandFiles = fs
       .readdirSync(commandsPath)
-      .filter((file) => file.endsWith(".js"));
+      .filter(file => file.endsWith(".js"));
 
     for (const file of commandFiles) {
       const filePath = path.join(commandsPath, file);
-      const command = require(filePath);
+
+      const commandModule = await import(pathToFileURL(filePath).href);
+      const command = commandModule.default;
+
       if ("data" in command && "execute" in command) {
         command.data.integration_types = [0, 1];
         command.data.contexts = [0, 1, 2];
         commands.push(command.data.toJSON());
       } else {
         console.log(
-          `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
+          `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`,
         );
       }
     }
@@ -38,7 +43,7 @@ const registerCommands = async () => {
 
   try {
     console.log(
-      `Started refreshing ${commands.length} application (/) commands.`
+      `Started refreshing ${commands.length} application (/) commands.`,
     );
 
     const data = await rest.put(Routes.applicationCommands(clientId), {
@@ -46,7 +51,7 @@ const registerCommands = async () => {
     });
 
     console.log(
-      `Successfully reloaded ${data.length} application (/) commands.`
+      `Successfully reloaded ${data.length} application (/) commands.`,
     );
 
     return { success: true, count: data.length };
@@ -56,10 +61,6 @@ const registerCommands = async () => {
   }
 };
 
-module.exports = registerCommands;
-
-if (require.main === module) {
-  (async () => {
-    await registerCommands();
-  })();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await registerCommands();
 }

@@ -1,14 +1,19 @@
-const { Events } = require("discord.js");
-const { startSpamScanner } = require("../monitor");
+import { Events } from "discord.js";
+import {
+  sleep,
+  startSpamScanner,
+  checkUserSpamInChannelByUserId,
+} from "../utils_functions.js";
+import pool from "../db.js";
 
-module.exports = {
+export default {
   name: Events.ClientReady,
   once: true,
   async execute(client) {
     async function waitForDbConnection() {
       while (true) {
         try {
-          await db.query2("SELECT 1");
+          await pool.query("SELECT 1");
           break;
         } catch (error) {
           console.log("Database not connected, retrying in 2s...");
@@ -17,7 +22,12 @@ module.exports = {
       }
 
       console.log(`Ready! Logged in as ${client.user.tag}`);
-      startSpamScanner(client);
+      // await checkUserSpamInChannelByUserId(
+      //   client,
+      //   "872407110468661279",
+      //   "850485144246812672",
+      // );
+      await startSpamScanner(client);
     }
 
     await waitForDbConnection();

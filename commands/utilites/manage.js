@@ -1,30 +1,30 @@
-const {
+import {
   SlashCommandBuilder,
   MessageFlags,
   ChannelType,
   PermissionsBitField,
-} = require("discord.js");
-const db = require("../../db");
-const { botText } = require("../../botText");
+} from "discord.js";
+import { addChannelMonitor, getChannelMonitorServer } from "../../db.js";
+import { botText } from "../../botText.js";
 
-module.exports = {
+export default {
   category: "utilities",
   data: new SlashCommandBuilder()
     .setName("manage")
     .setDescription("Manage channel to monitor")
-    .addChannelOption((option) =>
+    .addChannelOption(option =>
       option
         .setName("monitor")
         .setDescription("Select the channel to monitor")
         .setRequired(true)
-        .addChannelTypes(ChannelType.GuildText)
+        .addChannelTypes(ChannelType.GuildText),
     )
-    .addChannelOption((option) =>
+    .addChannelOption(option =>
       option
         .setName("report")
         .setDescription("Select the channel to report to")
         .setRequired(true)
-        .addChannelTypes(ChannelType.GuildText)
+        .addChannelTypes(ChannelType.GuildText),
     ),
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -32,9 +32,9 @@ module.exports = {
     const reportChannel = interaction.options.getChannel("report");
 
     const hasAdminPermission = interaction.memberPermissions.has(
-      PermissionsBitField.Flags.Administrator
+      PermissionsBitField.Flags.Administrator,
     );
-    if (!interaction.user.id == botText.starq_id || !hasAdminPermission) {
+    if (interaction.user.id !== botText.starq_id || !hasAdminPermission) {
       await interaction.followUp(messages.unauthorizedAdmin);
       return;
     }
@@ -42,23 +42,23 @@ module.exports = {
     let content;
     let posted = false;
     const permissions = monitorChannel.permissionsFor(
-      interaction.guild.members.me
+      interaction.guild.members.me,
     );
     const hasPermission =
       permissions.has(PermissionsBitField.Flags.SendMessages) &&
       permissions.has(PermissionsBitField.Flags.ViewChannel);
 
     if (!hasPermission) {
-      content = `I do not have permission to send messages in <#${channelId}>.`;
+      content = `I do not have permission to send messages in <#${monitorChannel.id}>.`;
     } else {
-      var server = await db.getChannelMonitorServer(monitorChannel.guild.id);
+      const server = await getChannelMonitorServer(monitorChannel.guild.id);
       if (server == null) {
         posted = true;
         content = `### <#${monitorChannel.id}> is now being monitored. <#${reportChannel.id}> will be used for reporting back.`;
-        await db.addChannelMonitor(
+        await addChannelMonitor(
           monitorChannel.guild.id,
           monitorChannel.id,
-          reportChannel.id
+          reportChannel.id,
         );
       } else {
         content = `Another channel is already set.`;
@@ -69,14 +69,14 @@ module.exports = {
           .send({
             content: `# WARNING: WRITING ANYTHING IN THIS CHANNEL WILL RESULT YOU GETTING KICKED FROM THE SERVER`,
           })
-          .catch((error) => {
+          .catch(error => {
             console.error(error);
           });
         await reportChannel
           .send({
             content: `Assigned this channel for reporting back`,
           })
-          .catch((error) => {
+          .catch(error => {
             console.error(error);
           });
       }

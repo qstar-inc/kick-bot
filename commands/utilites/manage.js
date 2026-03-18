@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import { addChannelMonitor, getChannelMonitorServer } from "../../db.js";
 import { botText } from "../../botText.js";
+import { messages } from "../../messages.js";
 
 export default {
   category: "utilities",

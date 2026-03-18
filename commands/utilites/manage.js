@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import { addChannelMonitor, getChannelMonitorServer } from "../../db.js";
 import { botText } from "../../botText.js";
+import { messages } from "../../messages.js";
 
 export default {
   category: "utilities",
@@ -34,7 +35,7 @@ export default {
     const hasAdminPermission = interaction.memberPermissions.has(
       PermissionsBitField.Flags.Administrator,
     );
-    if (interaction.user.id !== botText.starq_id || !hasAdminPermission) {
+    if (interaction.user.id !== botText.starq_id && !hasAdminPermission) {
       await interaction.followUp(messages.unauthorizedAdmin);
       return;
     }

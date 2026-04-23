@@ -13,9 +13,6 @@ VERSION=$(node -p "require('./package.json').version")
 
 # echo "do docker buildx build -t qstar-inc/kick-bot:1.X ."
 echo "Building Docker image"
-docker build -t qstar-inc/kick-bot:$VERSION .
+docker build -t qstar-inc/kick-bot:$VERSION -t qstar-inc/kick-bot:latest .
 
-echo "Restarting container"
-docker stop kick-bot || true
-docker rm kick-bot || true
-docker run -d --name kick-bot --env-file .env qstar-inc/kick-bot:$VERSION
+docker compose up -d --build

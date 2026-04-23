@@ -1,0 +1,13 @@
+services:
+  kick-bot:
+    image: qstar-inc/kick-bot:latest
+    container_name: kick-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - mariadb-net
+
+networks:
+  mariadb-net:
+    external: true

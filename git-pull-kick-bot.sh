@@ -18,4 +18,4 @@ docker build -t qstar-inc/kick-bot:$VERSION .
 echo "Restarting container"
 docker stop kick-bot || true
 docker rm kick-bot || true
-docker run -d --name kick-bot qstar-inc/kick-bot:$VERSION
+docker run -d --name --env-file .env kick-bot qstar-inc/kick-bot:$VERSION

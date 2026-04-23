@@ -21,20 +21,17 @@ export async function insertSpamUser(
   message: string,
   time: bigint,
 ): Promise<number> {
-  // console.log(`Inserting Spam User ${server}, ${user}, ${message}, ${time}`);
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO ${tableName} (server, user, message, message_time)
      VALUES (?, ?, ?, ?)`,
     [server, user, message, time],
   );
-  // return 0;
   return result.insertId;
 }
 
 export async function markProcessed(id: number) {
   const [result] = await pool.query<ResultSetHeader>(
-    `UPDATE ${tableName} SET processed = 1 WHERE (id = ?)
-     VALUES (?)`,
+    `UPDATE ${tableName} SET processed = 1 WHERE (id = ?)`,
     [id],
   );
   return result;

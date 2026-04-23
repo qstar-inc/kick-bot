@@ -155,6 +155,11 @@ async function processSpammer(
       const member = await guild.members.fetch(spammer.user).catch(() => null);
       if (!member) return;
 
+      const me = client.user ?? (await server.members.fetchMe());
+
+      const perms = serverReport.permissionsFor(me);
+      if (!perms?.has("ViewChannel")) return;
+
       const button = new ButtonBuilder()
         .setStyle(ButtonStyle.Danger)
         .setCustomId(`kick-${perServerConfig.id}-${spammer.id}`)

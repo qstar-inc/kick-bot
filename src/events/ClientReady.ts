@@ -31,13 +31,12 @@ async function waitForDbConnection(client: KickBotClient) {
 
   console.log(`Ready! Logged in as ${client.user.tag}`);
   await reloadChannels();
-  await startChannelCheckup(client);
-  await startSpamScanner(client);
 }
 
 let running: boolean = false;
 
 export async function startChannelCheckup(client: KickBotClient) {
+  await checkChannels(client);
   setInterval(
     async () => {
       if (running) return;
@@ -102,6 +101,8 @@ async function postStartup(client: KickBotClient) {
       noMention: true,
     });
   }
+  await startChannelCheckup(client);
+  await startSpamScanner(client);
 }
 
 async function checkChannels(client: KickBotClient) {
@@ -198,7 +199,7 @@ async function checkMessage(
       msg.member?.permissions.has(PermissionsBitField.Flags.ManageMessages) ??
       false;
 
-    if (!isBotMessage && !isPrivileged) {
+    if (!isBotMessage && !isPrivileged && !msg.author.bot) {
       try {
         await insertSpamUser(
           channel.guild.id,
@@ -221,13 +222,10 @@ async function checkMessage(
             });
           }
         }
+        if (msg.deletable) await msg.delete().catch(() => {});
       } catch (err) {
         client.logger.error(err, "checkChannels-kick");
-      } finally {
-        if (msg.deletable) await msg.delete().catch(() => {});
       }
-
-      continue;
     }
 
     if (isBotMessage) {

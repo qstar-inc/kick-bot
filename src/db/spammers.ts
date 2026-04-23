@@ -21,7 +21,7 @@ export async function insertSpamUser(
   message: string,
   time: bigint,
 ): Promise<number> {
-  console.log(`Inserting Spam User ${server}, ${user}, ${message}, ${time}`);
+  // console.log(`Inserting Spam User ${server}, ${user}, ${message}, ${time}`);
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO ${tableName} (server, user, message, message_time)
      VALUES (?, ?, ?, ?)`,

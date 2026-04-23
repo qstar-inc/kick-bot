@@ -267,9 +267,6 @@ async function checkMessage(
 
       validWarningMessage = msg;
 
-      console.log(postedText);
-      console.log(postWarningText);
-      console.log(postedText !== postWarningText);
       if (postedText !== postWarningText) {
         await interact({
           mode: "edit",

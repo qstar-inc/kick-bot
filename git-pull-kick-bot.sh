@@ -15,4 +15,5 @@ VERSION=$(node -p "require('./package.json').version")
 echo "Building Docker image"
 docker build -t qstar-inc/kick-bot:$VERSION -t qstar-inc/kick-bot:latest .
 
+docker compose down
 docker compose up -d --build
